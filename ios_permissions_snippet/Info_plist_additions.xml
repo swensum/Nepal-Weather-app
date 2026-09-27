@@ -1,0 +1,8 @@
+<!--
+  Add these keys inside ios/Runner/Info.plist,
+  as direct children of the top-level <dict>.
+-->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>This app uses your location to show local weather conditions.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>This app uses your location to show local weather conditions.</string>

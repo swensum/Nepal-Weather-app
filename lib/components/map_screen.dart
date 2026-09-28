@@ -1,1012 +1,1135 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
-enum WeatherLayerType {
-  radar(
-    'Rain Radar',
-    Icons.water_drop,
-  ),
+// ---------------------------------------------------------------------------
+// KEYS (all optional). Pass them at run time, never hard-code / commit them:
+//   flutter run --dart-define=OWM_KEY=xxxx --dart-define=TOMORROW_KEY=yyyy
+//
+// OWM_KEY      -> enables Temperature / Clouds / Wind / Pressure layers
+// TOMORROW_KEY -> adds a +2h rain forecast after LIVE
+// ---------------------------------------------------------------------------
+const String kOwmKey = String.fromEnvironment('OWM_KEY');
+const String kTomorrowApiKey = String.fromEnvironment('TOMORROW_KEY');
 
-  temperature(
-    'Temperature',
-    Icons.thermostat,
-  ),
+const int kForecastStepMinutes = 30;
+const int kForecastHours = 2;
+const int kTomorrowMaxNativeZoom = 8; // check your Tomorrow.io plan limits
+const int kOwmMaxNativeZoom = 9;
 
-  clouds(
-    'Clouds',
-    Icons.cloud,
-  ),
+// Smoothness tuning
+const int kMaxRadarFrames = 8; // past frames to animate (8 x 10min = 80min)
+const int kStageDelayMs = 350; // gap between mounting each frame's tiles
 
-  wind(
-    'Wind',
-    Icons.air,
-  ),
+const String kUserAgent = 'com.example.weather_app_3d';
 
-  pressure(
-    'Pressure',
-    Icons.speed,
-  ),
+// ------------------------------------------------------------------ models
 
-  none(
-    'None',
-    Icons.layers_clear,
-  );
+enum WeatherLayer {
+  radar('Rain Radar', Icons.water_drop_rounded, null),
+  temperature('Temperature', Icons.thermostat_rounded, 'temp_new'),
+  clouds('Clouds', Icons.cloud_rounded, 'clouds_new'),
+  wind('Wind', Icons.air_rounded, 'wind_new'),
+  pressure('Pressure', Icons.speed_rounded, 'pressure_new');
 
   final String label;
   final IconData icon;
-
-  const WeatherLayerType(
-    this.label,
-    this.icon,
-  );
+  final String? owmId; // null for radar
+  const WeatherLayer(this.label, this.icon, this.owmId);
 }
 
-class RadarFrame {
-  final int time;
-  final String path;
+class BaseStyle {
+  final String name;
+  final IconData icon;
+  final String baseUrl;
+  final String? labelsUrl;
+  final int baseNativeZoom;
+  final int labelsNativeZoom;
 
-  const RadarFrame({
-    required this.time,
-    required this.path,
+  const BaseStyle({
+    required this.name,
+    required this.icon,
+    required this.baseUrl,
+    required this.labelsUrl,
+    required this.baseNativeZoom,
+    required this.labelsNativeZoom,
   });
 }
 
+const String _esri = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+
+const List<BaseStyle> kBaseStyles = [
+  BaseStyle(
+    name: 'Dark',
+    icon: Icons.dark_mode_rounded,
+    baseUrl: '$_esri/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    labelsUrl:
+        '$_esri/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    baseNativeZoom: 16,
+    labelsNativeZoom: 16,
+  ),
+  BaseStyle(
+    name: 'Satellite',
+    icon: Icons.satellite_alt_rounded,
+    baseUrl: '$_esri/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    labelsUrl:
+        '$_esri/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    baseNativeZoom: 17,
+    labelsNativeZoom: 16,
+  ),
+  BaseStyle(
+    name: 'Light',
+    icon: Icons.light_mode_rounded,
+    baseUrl: '$_esri/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    labelsUrl:
+        '$_esri/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    baseNativeZoom: 16,
+    labelsNativeZoom: 16,
+  ),
+];
+
+/// One animation frame (radar or forecast).
+class MapFrame {
+  final DateTime time;
+  final String urlTemplate;
+  final bool isForecast;
+  final int maxNativeZoom;
+
+  const MapFrame({
+    required this.time,
+    required this.urlTemplate,
+    required this.isForecast,
+    required this.maxNativeZoom,
+  });
+}
+
+// ------------------------------------------------------------------ screen
+
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  /// Height of your own bottom navigation bar, so the timeline sits above it.
+  final double bottomInset;
+
+  const MapScreen({super.key, this.bottomInset = 100});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final MapController _mapController = MapController();
+  final MapController _map = MapController();
 
-  static const String _openWeatherApiKey =
-      '915e20e5765c5a2faf877bd8305c5c57';
+  static const LatLng _nepal = LatLng(28.3949, 84.1240);
+  static const double _defaultZoom = 5.0;
 
-  static const LatLng _nepalCenter = LatLng(
-    28.3949,
-    84.1240,
-  );
-  static const double _defaultZoom = 6.3;
+  List<MapFrame> _frames = [];
+  int _index = 0;
+  int _liveIndex = 0;
 
-  static const double _minZoom = 3.0;
+  WeatherLayer _layer = WeatherLayer.radar;
+  BaseStyle _base = kBaseStyles.first;
 
-  static const double _maxZoom = 18.0;
+  bool _loading = true;
+  bool _preparing = false;
+  String? _error;
+  bool _playing = false;
+  bool _showOverlay = true;
+  Timer? _timer;
 
+  // Staged preloading: frames are mounted one by one so we never fire
+  // hundreds of tile requests at once (that made tiles fail / go missing).
+  final Set<int> _mounted = {};
+  Timer? _stageTimer;
+  Timer? _restageTimer;
+  bool _ready = false;
 
-  WeatherLayerType _selectedLayer =
-      WeatherLayerType.radar;
+  int get _totalPast => _frames.where((f) => !f.isForecast).length;
 
-  List<RadarFrame> _radarFrames = [];
-
-  int _currentRadarIndex = 0;
-  bool _loadingRadar = true;
-  bool _isPlaying = false;
-  Timer? _radarTimer;
-  String _radarHost = '';
   @override
   void initState() {
     super.initState();
-
-    _loadRadarData();
+    // Default cache (100MB) is too small for many radar frames -> evictions.
+    final cache = PaintingBinding.instance.imageCache;
+    cache.maximumSizeBytes = 400 << 20;
+    cache.maximumSize = 3000;
+    _load();
   }
 
   @override
   void dispose() {
-
-    _radarTimer?.cancel();
-
+    _timer?.cancel();
+    _stageTimer?.cancel();
+    _restageTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadRadarData() async {
+  /// Mount radar frames gradually (current frame first).
+  void _startStaging() {
+    _stageTimer?.cancel();
+    if (_frames.isEmpty || _layer != WeatherLayer.radar) return;
+    _stop();
 
-    try {
-
+    final order = <int>[
+      if (!_frames[_index].isForecast) _index,
+      for (int i = _frames.length - 1; i >= 0; i--)
+        if (!_frames[i].isForecast && i != _index) i,
+    ];
+    if (order.isEmpty) {
       setState(() {
-        _loadingRadar = true;
+        _mounted.clear();
+        _ready = true;
+        _preparing = false;
       });
-
-
-      final response = await http.get(
-        Uri.parse(
-          'https://api.rainviewer.com/public/weather-maps.json',
-        ),
-      );
-
-
-      if (response.statusCode != 200) {
-
-        throw Exception(
-          'Radar API returned ${response.statusCode}',
-        );
-      }
-
-
-      final data = jsonDecode(response.body);
-
-
-      final String host = data['host'];
-
-
-      final List radarPast =
-          data['radar']['past'] ?? [];
-
-
-      final List<RadarFrame> frames = [];
-
-
-      for (final item in radarPast) {
-
-        final time = item['time'];
-
-        final path = item['path'];
-
-        if (time is int && path is String) {
-
-          frames.add(
-            RadarFrame(
-              time: time,
-              path: path,
-            ),
-          );
-        }
-      }
-
-
-      if (!mounted) return;
-
-
-      setState(() {
-
-        _radarHost = host;
-
-        _radarFrames = frames;
-
-        _currentRadarIndex =
-            frames.isEmpty ? 0 : frames.length - 1;
-
-        _loadingRadar = false;
-      });
-
-    } catch (e) {
-
-      debugPrint(
-        'RainViewer error: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _loadingRadar = false;
-      });
-    }
-  }
-
-  String? get _radarTileUrl {
-
-    if (_radarFrames.isEmpty ||
-        _radarHost.isEmpty) {
-      return null;
-    }
-
-
-    final frame =
-        _radarFrames[_currentRadarIndex];
-
-
-    
-
-    return '$_radarHost'
-        '${frame.path}'
-        '/512/{z}/{x}/{y}/2/1_1.png';
-  }
-
-  String get _openWeatherTileUrl {
-
-    String layer;
-
-    switch (_selectedLayer) {
-
-      case WeatherLayerType.temperature:
-        layer = 'temp_new';
-        break;
-
-      case WeatherLayerType.clouds:
-        layer = 'clouds_new';
-        break;
-
-      case WeatherLayerType.wind:
-        layer = 'wind_new';
-        break;
-
-      case WeatherLayerType.pressure:
-        layer = 'pressure_new';
-        break;
-
-      default:
-        layer = 'clouds_new';
-    }
-
-
-    return 'https://tile.openweathermap.org/map/'
-        '$layer/{z}/{x}/{y}.png'
-        '?appid=$_openWeatherApiKey';
-  }
-
-
-  void _zoomIn() {
-
-    final zoom =
-        _mapController.camera.zoom;
-
-
-    if (zoom < _maxZoom) {
-
-      _mapController.move(
-        _mapController.camera.center,
-        zoom + 1,
-      );
-    }
-  }
-
-  void _zoomOut() {
-
-    final zoom =
-        _mapController.camera.zoom;
-
-
-    if (zoom > _minZoom) {
-
-      _mapController.move(
-        _mapController.camera.center,
-        zoom - 1,
-      );
-    }
-  }
-
-  void _goToNepal() {
-
-    _mapController.move(
-      _nepalCenter,
-      _defaultZoom,
-    );
-  }
-
-
-  void _changeLayer(
-    WeatherLayerType layer,
-  ) {
-
-    // Stop animation when switching away
-    // from radar.
-
-    if (layer != WeatherLayerType.radar) {
-
-      _stopRadarAnimation();
-    }
-
-
-    setState(() {
-
-      _selectedLayer = layer;
-    });
-  }
-
-
-  void _startRadarAnimation() {
-
-    if (_radarFrames.length < 2) {
       return;
     }
 
-
-    _radarTimer?.cancel();
-
-
     setState(() {
-
-      _isPlaying = true;
-
-      _selectedLayer =
-          WeatherLayerType.radar;
+      _mounted
+        ..clear()
+        ..add(order.first);
+      _ready = false;
+      _preparing = true;
     });
 
-
-    _radarTimer = Timer.periodic(
-      const Duration(
-        milliseconds: 500,
-      ),
-      (timer) {
-
-        if (!mounted) {
-
-          timer.cancel();
-
-          return;
-        }
-
-
+    int n = 1;
+    _stageTimer =
+        Timer.periodic(const Duration(milliseconds: kStageDelayMs), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (n < order.length) {
+        setState(() => _mounted.add(order[n]));
+      }
+      n++;
+      // a few extra ticks so the last frame's tiles can finish downloading
+      if (n >= order.length + 3) {
+        t.cancel();
         setState(() {
-
-          _currentRadarIndex++;
-
-          if (_currentRadarIndex >=
-              _radarFrames.length) {
-
-            _currentRadarIndex = 0;
-          }
+          _ready = true;
+          _preparing = false;
         });
-      },
-    );
+      }
+    });
   }
 
-  void _stopRadarAnimation() {
-
-    _radarTimer?.cancel();
-
-    _radarTimer = null;
-
-
-    if (mounted) {
-
+  /// Called when the view is about to change (pan / zoom / recenter).
+  /// Drop hidden frames immediately (so they don't all re-request tiles at
+  /// once), then reload them gradually once the map settles.
+  void _onViewChanging() {
+    if (_layer != WeatherLayer.radar || _frames.isEmpty) return;
+    _stop();
+    if (_mounted.length > 1 || _ready) {
       setState(() {
+        _mounted.removeWhere((i) => i != _index);
+        _ready = false;
+        _preparing = true;
+      });
+    }
+    _restageTimer?.cancel();
+    _restageTimer = Timer(const Duration(milliseconds: 700), () {
+      if (mounted) _startStaging();
+    });
+  }
 
-        _isPlaying = false;
+  // ---------------------------------------------------------------- data
+
+  Future<void> _load() async {
+    _stop();
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await http
+          .get(Uri.parse('https://api.rainviewer.com/public/weather-maps.json'))
+          .timeout(const Duration(seconds: 15));
+
+      if (res.statusCode != 200) {
+        throw Exception('RainViewer returned ${res.statusCode}');
+      }
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final String host = data['host'] as String;
+      final radar = (data['radar'] ?? {}) as Map<String, dynamic>;
+      final List allPast = (radar['past'] ?? []) as List;
+      final List past = allPast.length > kMaxRadarFrames
+          ? allPast.sublist(allPast.length - kMaxRadarFrames)
+          : allPast;
+      final List nowcast = (radar['nowcast'] ?? []) as List;
+
+      MapFrame rv(dynamic item, bool forecast) {
+        final int t = item['time'] as int;
+        final String path = item['path'] as String;
+        return MapFrame(
+          time: DateTime.fromMillisecondsSinceEpoch(t * 1000),
+          // 256px tiles, colour scheme 2 (Universal Blue), smooth=1, snow=1
+          urlTemplate: '$host$path/256/{z}/{x}/{y}/2/1_1.png',
+          isForecast: forecast,
+          maxNativeZoom: 7, // RainViewer public API limit
+        );
+      }
+
+      final frames = <MapFrame>[
+        for (final p in past) rv(p, false),
+        for (final n in nowcast) rv(n, true),
+      ];
+
+      if (frames.isEmpty) throw Exception('No radar frames available');
+
+      final liveIndex = past.isEmpty ? 0 : past.length - 1;
+
+      // Optional Tomorrow.io forecast frames
+      if (kTomorrowApiKey.isNotEmpty && nowcast.isEmpty) {
+        final base = frames[liveIndex].time;
+        final steps = (kForecastHours * 60) ~/ kForecastStepMinutes;
+        for (int i = 1; i <= steps; i++) {
+          final t = base.add(Duration(minutes: kForecastStepMinutes * i));
+          final u = t.toUtc();
+          final ts = DateTime.utc(u.year, u.month, u.day, u.hour, u.minute)
+              .toIso8601String()
+              .replaceAll('.000Z', 'Z');
+          frames.add(MapFrame(
+            time: t,
+            urlTemplate: 'https://api.tomorrow.io/v4/map/tile/{z}/{x}/{y}/'
+                'precipitationIntensity/$ts.png?apikey=$kTomorrowApiKey',
+            isForecast: true,
+            maxNativeZoom: kTomorrowMaxNativeZoom,
+          ));
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _frames = frames;
+        _liveIndex = liveIndex;
+        _index = liveIndex;
+        _loading = false;
+      });
+      _startStaging();
+    } catch (e) {
+      debugPrint('Radar load error: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not load radar. Tap to retry.';
       });
     }
   }
 
-  void _toggleRadarAnimation() {
+  // ------------------------------------------------------------ controls
 
-    if (_isPlaying) {
+  void _togglePlay() {
+    if (_playing) {
+      _stop();
+      return;
+    }
+    if (_frames.length < 2 || _layer != WeatherLayer.radar || !_ready) return;
 
-      _stopRadarAnimation();
+    setState(() {
+      _playing = true;
+      _showOverlay = true;
+      if (_index >= _frames.length - 1) _index = 0;
+    });
 
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 800), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _index = (_index + 1) % _frames.length);
+    });
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+    if (mounted && _playing) setState(() => _playing = false);
+  }
+
+  void _zoom(double delta) {
+    final cam = _map.camera;
+    _onViewChanging();
+    _map.move(cam.center, (cam.zoom + delta).clamp(3.0, 18.0));
+  }
+
+  void _selectLayer(WeatherLayer l) {
+    if (l != WeatherLayer.radar) {
+      _stop();
+      _stageTimer?.cancel();
+    }
+    setState(() {
+      _layer = l;
+      _showOverlay = true;
+    });
+    if (l == WeatherLayer.radar) _startStaging();
+  }
+
+  void _toggleOverlay() {
+    setState(() => _showOverlay = !_showOverlay);
+    if (_showOverlay) {
+      _startStaging();
     } else {
-
-      _startRadarAnimation();
+      _stop();
+      _stageTimer?.cancel();
     }
   }
 
-
-  void _showLayerMenu() {
-
+  void _openLayerSheet() {
     showModalBottomSheet(
       context: context,
-
       backgroundColor: Colors.transparent,
-
-      builder: (context) {
-
-        return _LayerSheet(
-          selectedLayer: _selectedLayer,
-
-          onSelected: (layer) {
-
-            _changeLayer(layer);
-
-            Navigator.pop(context);
-          },
-        );
-      },
+      isScrollControlled: true,
+      builder: (_) => _LayerSheet(
+        selectedLayer: _layer,
+        selectedBase: _base,
+        hasOwmKey: kOwmKey.isNotEmpty,
+        onLayer: (l) {
+          _selectLayer(l);
+          Navigator.pop(context);
+        },
+        onBase: (b) {
+          setState(() => _base = b);
+          Navigator.pop(context);
+        },
+      ),
     );
   }
 
+  // ------------------------------------------------------------- helpers
+
+  /// All past frames stay mounted (so tiles are cached & animation is smooth);
+  /// forecast frames only load when close to the current one.
+  bool _shouldBuild(int i) {
+    if (!_frames[i].isForecast) return _mounted.contains(i) || i == _index;
+    return (i - _index).abs() <= 1;
+  }
+
+  String _clock(DateTime t) {
+    final l = t.toLocal();
+    return '${l.hour.toString().padLeft(2, '0')}:'
+        '${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _relative(int i) {
+    if (_frames.isEmpty) return '';
+    final diff = _frames[i].time.difference(_frames[_liveIndex].time).inMinutes;
+    if (diff.abs() < 3) return 'Now';
+    final sign = diff < 0 ? '-' : '+';
+    final a = diff.abs();
+    if (a >= 60) {
+      final h = a ~/ 60;
+      final m = a % 60;
+      return m == 0 ? '$sign${h}h' : '$sign${h}h ${m}m';
+    }
+    return '$sign${a}m';
+  }
+
+  bool get _layerNeedsKey => _layer != WeatherLayer.radar && kOwmKey.isEmpty;
+
+  // ----------------------------------------------------------------- UI
+
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
+  Widget build(BuildContext context) {
     return Scaffold(
-
-      backgroundColor: Colors.black,
-
+      backgroundColor: const Color(0xFF121212),
       body: Stack(
-
         children: [
-          FlutterMap(
-
-            mapController:
-                _mapController,
-
-            options: const MapOptions(
-
-              initialCenter:
-                  _nepalCenter,
-
-              initialZoom:
-                  _defaultZoom,
-
-              minZoom:
-                  _minZoom,
-
-              maxZoom:
-                  _maxZoom,
+          _buildMap(),
+          _buildTopLeft(),
+          _buildSideButtons(),
+          if (_layer == WeatherLayer.radar && _frames.isNotEmpty)
+            _buildTimeline(),
+          if (_loading) _statusPill(loading: true, text: 'Loading radar...'),
+          if (!_loading && _error != null)
+            _statusPill(loading: false, text: _error!, onTap: _load),
+          if (!_loading &&
+              _error == null &&
+              _layer == WeatherLayer.radar &&
+              _preparing)
+            _statusPill(
+              loading: true,
+              text: 'Loading frames ${_mounted.length}/$_totalPast',
             ),
-
-            children: [
-              TileLayer(
-
-                urlTemplate:
-                    'https://server.arcgisonline.com/'
-                    'ArcGIS/rest/services/'
-                    'World_Imagery/'
-                    'MapServer/tile/{z}/{y}/{x}',
-
-                userAgentPackageName:
-                    'com.example.weather_app_3d',
-
-                maxZoom:
-                    _maxZoom,
-
-                maxNativeZoom:
-                    18,
-              ),
-
-              if (
-                _selectedLayer ==
-                    WeatherLayerType.radar
-              )
-
-                if (_radarTileUrl != null)
-
-                  Opacity(
-
-                    opacity: 0.72,
-
-                    child: TileLayer(
-
-                      key: ValueKey(
-                        '$_currentRadarIndex'
-                        '_radar',
-                      ),
-
-                      urlTemplate:
-                          _radarTileUrl!,
-
-                      userAgentPackageName:
-                          'com.example.weather_app_3d',
-
-                      maxZoom: 7,
-
-                      maxNativeZoom: 7,
-
-                      tileSize: 512,
-                    ),
-                  ),
-
-              if (
-                _selectedLayer ==
-                    WeatherLayerType.temperature ||
-                _selectedLayer ==
-                    WeatherLayerType.clouds ||
-                _selectedLayer ==
-                    WeatherLayerType.wind ||
-                _selectedLayer ==
-                    WeatherLayerType.pressure
-              )
-
-                Opacity(
-
-                  opacity: 0.55,
-
-                  child: TileLayer(
-
-                    urlTemplate:
-                        _openWeatherTileUrl,
-
-                    userAgentPackageName:
-                        'com.example.weather_app_3d',
-
-                    maxZoom:
-                        9,
-
-                    maxNativeZoom:
-                        9,
-                  ),
-                ),
-
-              TileLayer(
-
-                urlTemplate:
-                    'https://server.arcgisonline.com/'
-                    'ArcGIS/rest/services/'
-                    'Reference/'
-                    'World_Boundaries_and_Places/'
-                    'MapServer/tile/{z}/{y}/{x}',
-
-                userAgentPackageName:
-                    'com.example.weather_app_3d',
-
-                maxZoom:
-                    _maxZoom,
-
-                maxNativeZoom:
-                    16,
-              ),
-              const RichAttributionWidget(
-
-                alignment:
-                    AttributionAlignment.bottomLeft,
-
-                attributions: [
-
-                  TextSourceAttribution(
-                    'Esri, Maxar, Earthstar Geographics',
-                  ),
-
-                  TextSourceAttribution(
-                    'OpenWeatherMap',
-                  ),
-
-                  TextSourceAttribution(
-                    'RainViewer',
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (_loadingRadar)
-
-            Positioned(
-              top: 60,
-              left: 0,
-              right: 0,
-
-              child: Center(
-
-                child: Container(
-
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        Colors.black.withOpacity(
-                      0.70,
-                    ),
-
-                    borderRadius:
-                        BorderRadius.circular(
-                      20,
-                    ),
-                  ),
-
-                  child: const Row(
-                    mainAxisSize:
-                        MainAxisSize.min,
-
-                    children: [
-
-                      SizedBox(
-                        width: 15,
-                        height: 15,
-
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-
-                      SizedBox(width: 8),
-
-                      Text(
-                        'Loading radar...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          Positioned(
-
-            right: 16,
-
-            // Keep this above your own bottom navigation.
-            bottom: 110,
-
-            child: Column(
-
-              children: [
-                _MapButton(
-                  icon: Icons.add,
-                  onTap: _zoomIn,
-                ),
-
-                const SizedBox(height: 8),
-                _MapButton(
-                  icon: Icons.remove,
-                  onTap: _zoomOut,
-                ),
-
-                const SizedBox(height: 8),
-                _MapButton(
-                  icon: Icons.my_location,
-                  onTap: _goToNepal,
-                ),
-
-                const SizedBox(height: 8),
-                _MapButton(
-                  icon: Icons.layers,
-                  active:
-                      _selectedLayer !=
-                      WeatherLayerType.none,
-
-                  onTap: _showLayerMenu,
-                ),
-              ],
-            ),
-          ),
-
-          if (
-            _selectedLayer ==
-                WeatherLayerType.radar &&
-            _radarFrames.length > 1
-          )
-
-            Positioned(
-
-              left: 18,
-
-              // Above your bottom navigation.
-              bottom: 110,
-
-              child: GestureDetector(
-
-                onTap:
-                    _toggleRadarAnimation,
-
-                child: Container(
-
-                  width: 52,
-                  height: 52,
-
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        Colors.black.withOpacity(
-                      0.78,
-                    ),
-
-                    shape:
-                        BoxShape.circle,
-
-                    boxShadow: [
-
-                      BoxShadow(
-                        color:
-                            Colors.black.withOpacity(
-                          0.25,
-                        ),
-
-                        blurRadius: 10,
-
-                        offset:
-                            const Offset(
-                          0,
-                          3,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  child: Icon(
-
-                    _isPlaying
-                        ? Icons.pause
-                        : Icons.play_arrow,
-
-                    color:
-                        Colors.white,
-
-                    size: 27,
-                  ),
-                ),
-              ),
+          if (_layerNeedsKey)
+            _statusPill(
+              loading: false,
+              icon: Icons.key_rounded,
+              text: 'Add OWM_KEY to enable ${_layer.label}',
             ),
         ],
       ),
     );
   }
-}
-class _MapButton extends StatelessWidget {
 
-  final IconData icon;
+  Widget _buildMap() {
+    return FlutterMap(
+      mapController: _map,
+      options: MapOptions(
+        initialCenter: _nepal,
+        initialZoom: _defaultZoom,
+        minZoom: 3,
+        maxZoom: 18,
+        onPositionChanged: (camera, hasGesture) {
+          if (hasGesture) _onViewChanging();
+        },
+      ),
+      children: [
+        // 1. Base map
+        TileLayer(
+          key: ValueKey('base_${_base.name}'),
+          urlTemplate: _base.baseUrl,
+          userAgentPackageName: kUserAgent,
+          maxNativeZoom: _base.baseNativeZoom,
+          maxZoom: 18,
+        ),
 
-  final VoidCallback onTap;
-
-  final bool active;
-
-
-  const _MapButton({
-    required this.icon,
-    required this.onTap,
-    this.active = false,
-  });
-
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-
-    return GestureDetector(
-
-      onTap: onTap,
-
-      child: Container(
-
-        width: 46,
-        height: 46,
-
-        decoration: BoxDecoration(
-
-          color: active
-              ? Colors.black
-              : Colors.white,
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          boxShadow: [
-
-            BoxShadow(
-              color:
-                  Colors.black.withOpacity(
-                0.22,
+        // 2a. Radar frames: all stacked, only the current one is visible.
+        // Hidden frames use 1% opacity (not 0) so Flutter still paints them
+        // and their tiles stay loaded -> no "stuck" animation.
+        if (_showOverlay && _layer == WeatherLayer.radar)
+          for (int i = 0; i < _frames.length; i++)
+            if (_shouldBuild(i))
+              Opacity(
+                key: ValueKey('frame_${_frames[i].urlTemplate}'),
+                opacity: i == _index ? 0.85 : 0.01,
+                child: TileLayer(
+                  urlTemplate: _frames[i].urlTemplate,
+                  userAgentPackageName: kUserAgent,
+                  maxNativeZoom: _frames[i].maxNativeZoom,
+                  maxZoom: 18,
+                  tileDisplay: const TileDisplay.instantaneous(),
+                  panBuffer: 0, // don't fetch extra rings for hidden frames
+                  keepBuffer: 1,
+                  evictErrorTileStrategy:
+                      EvictErrorTileStrategy.notVisibleRespectMargin,
+                ),
               ),
 
-              blurRadius: 9,
+        // 2b. OpenWeatherMap layers (temperature, clouds, wind, pressure)
+        if (_showOverlay &&
+            _layer != WeatherLayer.radar &&
+            kOwmKey.isNotEmpty)
+          Opacity(
+            key: ValueKey('owm_${_layer.name}'),
+            opacity: 0.75,
+            child: TileLayer(
+              urlTemplate: 'https://tile.openweathermap.org/map/'
+                  '${_layer.owmId}/{z}/{x}/{y}.png?appid=$kOwmKey',
+              userAgentPackageName: kUserAgent,
+              maxNativeZoom: kOwmMaxNativeZoom,
+              maxZoom: 18,
+              tileDisplay: const TileDisplay.instantaneous(),
+            ),
+          ),
 
-              offset:
-                  const Offset(
-                0,
-                3,
+        // 3. Labels on top
+        if (_base.labelsUrl != null)
+          TileLayer(
+            key: ValueKey('labels_${_base.name}'),
+            urlTemplate: _base.labelsUrl!,
+            userAgentPackageName: kUserAgent,
+            maxNativeZoom: _base.labelsNativeZoom,
+            maxZoom: 18,
+          ),
+
+        const RichAttributionWidget(
+          alignment: AttributionAlignment.bottomLeft,
+          attributions: [
+            TextSourceAttribution('Esri, HERE, Garmin, OpenStreetMap contributors'),
+            TextSourceAttribution('RainViewer'),
+            TextSourceAttribution('OpenWeatherMap'),
+            TextSourceAttribution('Tomorrow.io'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Layer chip + legend (top-left)
+  Widget _buildTopLeft() {
+    return Positioned(
+      left: 14,
+      top: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: _openLayerSheet,
+                child: _Glass(
+                  radius: 22,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_layer.icon,
+                          color: const Color(0xFF6EA8FF), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        _layer.label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white70, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              if (_showOverlay && !_layerNeedsKey) ...[
+                const SizedBox(height: 8),
+                _Legend(layer: _layer),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideButtons() {
+    return Positioned(
+      right: 14,
+      top: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            children: [
+              _RoundBtn(
+                icon: _showOverlay
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded,
+                onTap: _toggleOverlay,
+              ),
+              const SizedBox(height: 8),
+              _RoundBtn(icon: Icons.layers_rounded, onTap: _openLayerSheet),
+              const SizedBox(height: 8),
+              _RoundBtn(
+                icon: Icons.my_location_rounded,
+                onTap: () {
+                  _onViewChanging();
+                  _map.move(_nepal, _defaultZoom);
+                },
+              ),
+              const SizedBox(height: 8),
+              _RoundBtn(icon: Icons.add_rounded, onTap: () => _zoom(1)),
+              const SizedBox(height: 8),
+              _RoundBtn(icon: Icons.remove_rounded, onTap: () => _zoom(-1)),
+              const SizedBox(height: 8),
+              _RoundBtn(icon: Icons.refresh_rounded, onTap: _load),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusPill({
+    required bool loading,
+    required String text,
+    IconData icon = Icons.refresh_rounded,
+    VoidCallback? onTap,
+  }) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 64),
+          child: Center(
+            child: GestureDetector(
+              onTap: onTap,
+              child: _Glass(
+                radius: 20,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (loading)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      Icon(icon, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Text(text,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12.5)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeline() {
+    final frame = _frames[_index];
+    final isLive = _index == _liveIndex;
+    final maxIdx = (_frames.length - 1).toDouble();
+
+    return Positioned(
+      left: 14,
+      right: 14,
+      bottom: widget.bottomInset,
+      child: _Glass(
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(10, 10, 16, 8),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E2A4A),
+                  shape: BoxShape.circle,
+                ),
+                child: _ready
+                    ? Icon(
+                        _playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: const Color(0xFF6EA8FF),
+                        size: 32,
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.all(15),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Color(0xFF6EA8FF),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _clock(frame.time),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _Badge(
+                        text: isLive
+                            ? 'LIVE'
+                            : (frame.isForecast ? 'FORECAST' : 'PAST'),
+                        color: isLive
+                            ? const Color(0xFFE5484D)
+                            : (frame.isForecast
+                                ? const Color(0xFF3D7BFF)
+                                : Colors.grey.shade700),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 5,
+                      activeTrackColor: const Color(0xFF4A72D8),
+                      inactiveTrackColor: Colors.white24,
+                      thumbColor: Colors.white,
+                      overlayShape: SliderComponentShape.noOverlay,
+                    ),
+                    child: Slider(
+                      value: _index.toDouble().clamp(0, maxIdx),
+                      min: 0,
+                      max: maxIdx < 1 ? 1 : maxIdx,
+                      divisions: _frames.length > 1 ? _frames.length - 1 : 1,
+                      onChanged: (v) {
+                        _stop();
+                        setState(() => _index = v.round());
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_relative(0), style: _tickStyle),
+                        Text(_relative(_index),
+                            style: _tickStyle.copyWith(color: Colors.white)),
+                        Text(_relative(_frames.length - 1), style: _tickStyle),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
 
-        child: Icon(
+  static const TextStyle _tickStyle =
+      TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500);
+}
 
-          icon,
+// ---------------------------------------------------------------- widgets
 
-          color: active
-              ? Colors.white
-              : Colors.black87,
+/// Frosted-glass container used across the UI.
+class _Glass extends StatelessWidget {
+  final Widget child;
+  final double radius;
+  final EdgeInsetsGeometry padding;
 
-          size: 23,
+  const _Glass({
+    required this.child,
+    this.radius = 16,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: const Color(0xFF14161B).withOpacity(0.78),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: child,
         ),
       ),
     );
   }
 }
 
+class _RoundBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _RoundBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: _Glass(
+        radius: 15,
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(icon, color: Colors.white, size: 23),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _Badge({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small colour legend (approximate palettes).
+class _Legend extends StatelessWidget {
+  final WeatherLayer layer;
+
+  const _Legend({required this.layer});
+
+  @override
+  Widget build(BuildContext context) {
+    late final List<Color> colors;
+    late final String left;
+    late final String right;
+
+    switch (layer) {
+      case WeatherLayer.radar:
+        colors = const [
+          Color(0xFF9FD6F5),
+          Color(0xFF1F8AD1),
+          Color(0xFF0B4F9C),
+          Color(0xFFF3D000),
+          Color(0xFFE8730C),
+          Color(0xFFD62828),
+        ];
+        left = 'Light';
+        right = 'Heavy';
+        break;
+      case WeatherLayer.temperature:
+        colors = const [
+          Color(0xFF821692),
+          Color(0xFF208CEC),
+          Color(0xFF23DDDD),
+          Color(0xFFC2FF28),
+          Color(0xFFFFF028),
+          Color(0xFFFC8014),
+        ];
+        left = '-40°C';
+        right = '+40°C';
+        break;
+      case WeatherLayer.clouds:
+        colors = const [
+          Color(0x00FFFFFF),
+          Color(0x88FFFFFF),
+          Color(0xFFFFFFFF),
+        ];
+        left = 'Clear';
+        right = 'Overcast';
+        break;
+      case WeatherLayer.wind:
+        colors = const [
+          Color(0xFFCFE9FF),
+          Color(0xFF5AB0FF),
+          Color(0xFF7A5CFF),
+          Color(0xFFB03AC9),
+        ];
+        left = 'Calm';
+        right = 'Strong';
+        break;
+      case WeatherLayer.pressure:
+        colors = const [
+          Color(0xFF2C6BFF),
+          Color(0xFF3FD0D4),
+          Color(0xFFF7E04A),
+          Color(0xFFE8503A),
+        ];
+        left = 'Low';
+        right = 'High';
+        break;
+    }
+
+    const style = TextStyle(color: Colors.white70, fontSize: 10.5);
+
+    return _Glass(
+      radius: 14,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+      child: SizedBox(
+        width: 130,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(colors: colors),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [Text(left, style: style), Text(right, style: style)],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------ layer sheet
 
 class _LayerSheet extends StatelessWidget {
-
-  final WeatherLayerType selectedLayer;
-
-  final Function(
-    WeatherLayerType,
-  ) onSelected;
-
+  final WeatherLayer selectedLayer;
+  final BaseStyle selectedBase;
+  final bool hasOwmKey;
+  final ValueChanged<WeatherLayer> onLayer;
+  final ValueChanged<BaseStyle> onBase;
 
   const _LayerSheet({
     required this.selectedLayer,
-    required this.onSelected,
+    required this.selectedBase,
+    required this.hasOwmKey,
+    required this.onLayer,
+    required this.onBase,
   });
 
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
-    return Container(
-
-      margin:
-          const EdgeInsets.all(12),
-
-      padding:
-          const EdgeInsets.all(20),
-
-      decoration: BoxDecoration(
-
-        color:
-            const Color(0xFF151515),
-
-        borderRadius:
-            BorderRadius.circular(
-          28,
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF15171C),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const Text('Weather layer',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final l in WeatherLayer.values)
+                  _Chip(
+                    icon: l.icon,
+                    label: l.label,
+                    selected: l == selectedLayer,
+                    locked: l != WeatherLayer.radar && !hasOwmKey,
+                    onTap: () => onLayer(l),
+                  ),
+              ],
+            ),
+            if (!hasOwmKey)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Locked layers need an OpenWeatherMap key (OWM_KEY).',
+                  style: TextStyle(color: Colors.white38, fontSize: 11.5),
+                ),
+              ),
+            const SizedBox(height: 20),
+            const Text('Map style',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final b in kBaseStyles)
+                  _Chip(
+                    icon: b.icon,
+                    label: b.name,
+                    selected: b.name == selectedBase.name,
+                    onTap: () => onBase(b),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
 
-      child: Column(
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool locked;
+  final VoidCallback onTap;
 
-        mainAxisSize:
-            MainAxisSize.min,
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.locked = false,
+  });
 
-        children: [
-
-
-          Container(
-
-            width: 40,
-            height: 4,
-
-            margin:
-                const EdgeInsets.only(
-              bottom: 18,
-            ),
-
-            decoration:
-                BoxDecoration(
-
-              color:
-                  Colors.white24,
-
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFF3D7BFF).withOpacity(0.22)
+              : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF6EA8FF)
+                : Colors.white.withOpacity(0.06),
           ),
-
-
-          const Align(
-
-            alignment:
-                Alignment.centerLeft,
-
-            child: Text(
-              'Weather Layers',
-
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 19,
+                color: locked ? Colors.white30 : Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              label,
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                color: locked ? Colors.white38 : Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-
-
-          const SizedBox(
-            height: 14,
-          ),
-
-
-          ...WeatherLayerType.values.map(
-
-            (layer) {
-
-              final selected =
-                  selectedLayer == layer;
-
-
-              return GestureDetector(
-
-                onTap: () {
-                  onSelected(layer);
-                },
-
-
-                child: Container(
-
-                  margin:
-                      const EdgeInsets.only(
-                    bottom: 8,
-                  ),
-
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-
-                  decoration:
-                      BoxDecoration(
-
-                    color: selected
-                        ? Colors.white
-                            .withOpacity(0.13)
-                        : Colors.white
-                            .withOpacity(0.05),
-
-                    borderRadius:
-                        BorderRadius.circular(
-                      16,
-                    ),
-
-                    border: Border.all(
-
-                      color: selected
-                          ? Colors.white
-                              .withOpacity(0.35)
-                          : Colors.transparent,
-                    ),
-                  ),
-
-
-                  child: Row(
-
-                    children: [
-
-                      Icon(
-                        layer.icon,
-
-                        color:
-                            Colors.white,
-
-                        size: 22,
-                      ),
-
-
-                      const SizedBox(
-                        width: 14,
-                      ),
-
-
-                      Text(
-
-                        layer.label,
-
-                        style:
-                            const TextStyle(
-
-                          color:
-                              Colors.white,
-
-                          fontSize:
-                              15,
-
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-
-
-                      const Spacer(),
-
-
-                      if (selected)
-
-                        const Icon(
-                          Icons.check_circle,
-
-                          color:
-                              Colors.white,
-
-                          size: 21,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+            if (locked) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.lock_rounded, size: 13, color: Colors.white30),
+            ],
+          ],
+        ),
       ),
     );
   }

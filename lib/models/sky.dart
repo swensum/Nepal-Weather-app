@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:weather_app_3d/theme/app_theme.dart';
 
-
 enum Sky { clear, partly, cloudy, fog, drizzle, rain, snow, storm }
 
 Sky skyFromCode(int c) {

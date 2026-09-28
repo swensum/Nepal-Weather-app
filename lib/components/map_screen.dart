@@ -452,10 +452,26 @@ class _MapScreenState extends State<MapScreen> {
     const lr = 0.2126, lg = 0.7152, lb = 0.0722;
     final ir = 1 - s;
     return ColorFilter.matrix(<double>[
-      lr * ir + s, lg * ir, lb * ir, 0, 0,
-      lr * ir, lg * ir + s, lb * ir, 0, 0,
-      lr * ir, lg * ir, lb * ir + s, 0, 0,
-      0, 0, 0, 1, 0,
+      lr * ir + s,
+      lg * ir,
+      lb * ir,
+      0,
+      0,
+      lr * ir,
+      lg * ir + s,
+      lb * ir,
+      0,
+      0,
+      lr * ir,
+      lg * ir,
+      lb * ir + s,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
     ]);
   }
 
@@ -541,9 +557,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
 
         // 2b. OpenWeatherMap layers (temperature, clouds, wind, pressure)
-        if (_showOverlay &&
-            _layer != WeatherLayer.radar &&
-            kOwmKey.isNotEmpty)
+        if (_showOverlay && _layer != WeatherLayer.radar && kOwmKey.isNotEmpty)
           Opacity(
             key: ValueKey('owm_${_layer.name}'),
             opacity: _owmOpacity,
@@ -574,7 +588,8 @@ class _MapScreenState extends State<MapScreen> {
         const RichAttributionWidget(
           alignment: AttributionAlignment.bottomLeft,
           attributions: [
-            TextSourceAttribution('Esri, HERE, Garmin, OpenStreetMap contributors'),
+            TextSourceAttribution(
+                'Esri, HERE, Garmin, OpenStreetMap contributors'),
             TextSourceAttribution('RainViewer'),
             TextSourceAttribution('OpenWeatherMap'),
             TextSourceAttribution('Tomorrow.io'),
@@ -828,8 +843,8 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  static const TextStyle _tickStyle =
-      TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500);
+  static const TextStyle _tickStyle = TextStyle(
+      color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500);
 }
 
 // ---------------------------------------------------------------- widgets
@@ -1132,8 +1147,8 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF3D7BFF).withValues(alpha:  0.22)
-              : Colors.white.withValues(alpha:  0.06),
+              ? const Color(0xFF3D7BFF).withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
@@ -1144,9 +1159,7 @@ class _Chip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 19,
-                color: locked ? Colors.white30 : Colors.white),
+            Icon(icon, size: 19, color: locked ? Colors.white30 : Colors.white),
             const SizedBox(width: 8),
             Text(
               label,

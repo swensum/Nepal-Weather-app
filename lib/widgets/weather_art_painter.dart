@@ -32,37 +32,66 @@ class WeatherArtPainter extends CustomPainter {
         } else {
           _moon(c, o2, u * .18);
         }
-        _cloud(c, Rect.fromLTWH(s.width * .22, s.height * .40, s.width * .72, s.height * .44), false);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .22, s.height * .40, s.width * .72, s.height * .44),
+            false);
         break;
       case Sky.cloudy:
-        _cloud(c, Rect.fromLTWH(s.width * .04, s.height * .20, s.width * .64, s.height * .36), true);
-        _cloud(c, Rect.fromLTWH(s.width * .24, s.height * .38, s.width * .72, s.height * .44), false);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .04, s.height * .20, s.width * .64, s.height * .36),
+            true);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .24, s.height * .38, s.width * .72, s.height * .44),
+            false);
         break;
       case Sky.fog:
-        _cloud(c, Rect.fromLTWH(s.width * .12, s.height * .14, s.width * .74, s.height * .42), false);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .12, s.height * .14, s.width * .74, s.height * .42),
+            false);
         for (int i = 0; i < 3; i++) {
           final dx = math.sin(t * 2 * math.pi + i) * u * .03;
           final y = s.height * (.64 + .1 * i);
           c.drawRRect(
             RRect.fromRectAndRadius(
-              Rect.fromLTWH(s.width * (.16 + .06 * i) + dx, y, s.width * .62, u * .045),
+              Rect.fromLTWH(
+                  s.width * (.16 + .06 * i) + dx, y, s.width * .62, u * .045),
               Radius.circular(u),
             ),
-            Paint()..color = Colors.white.withValues(alpha:0.35 - i * 0.07),
+            Paint()..color = Colors.white.withValues(alpha: 0.35 - i * 0.07),
           );
         }
         break;
       case Sky.drizzle:
       case Sky.rain:
-        _cloud(c, Rect.fromLTWH(s.width * .10, s.height * .14, s.width * .80, s.height * .44), true);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .10, s.height * .14, s.width * .80, s.height * .44),
+            true);
         _rain(c, s, sky == Sky.rain ? 12 : 7);
         break;
       case Sky.snow:
-        _cloud(c, Rect.fromLTWH(s.width * .10, s.height * .14, s.width * .80, s.height * .44), false);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .10, s.height * .14, s.width * .80, s.height * .44),
+            false);
         _snow(c, s, 10);
         break;
       case Sky.storm:
-        _cloud(c, Rect.fromLTWH(s.width * .10, s.height * .12, s.width * .80, s.height * .44), true);
+        _cloud(
+            c,
+            Rect.fromLTWH(
+                s.width * .10, s.height * .12, s.width * .80, s.height * .44),
+            true);
         _rain(c, s, 6);
         _bolt(c, s);
         break;
@@ -75,11 +104,11 @@ class WeatherArtPainter extends CustomPainter {
       o,
       r * 1.15,
       Paint()
-        ..color = const Color(0xFFFFB627).withValues(alpha:0.55)
+        ..color = const Color(0xFFFFB627).withValues(alpha: 0.55)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * .9),
     );
     final ray = Paint()
-      ..color = const Color(0xFFFFD166).withValues(alpha:0.9)
+      ..color = const Color(0xFFFFD166).withValues(alpha: 0.9)
       ..strokeWidth = r * .12
       ..strokeCap = StrokeCap.round;
     for (int i = 0; i < 12; i++) {
@@ -103,7 +132,7 @@ class WeatherArtPainter extends CustomPainter {
       o,
       r * 1.1,
       Paint()
-        ..color = const Color(0xFF9FB4FF).withValues(alpha:0.4)
+        ..color = const Color(0xFF9FB4FF).withValues(alpha: 0.4)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * .8),
     );
     c.drawCircle(
@@ -115,7 +144,7 @@ class WeatherArtPainter extends CustomPainter {
           colors: [Color(0xFFFFFFFF), Color(0xFFDDE4F7), Color(0xFF9FAED6)],
         ).createShader(Rect.fromCircle(center: o, radius: r)),
     );
-    final cr = Paint()..color = const Color(0xFF7F8DB8).withValues(alpha:0.28);
+    final cr = Paint()..color = const Color(0xFF7F8DB8).withValues(alpha: 0.28);
     c.drawCircle(o + Offset(r * .3, -r * .25), r * .18, cr);
     c.drawCircle(o + Offset(-r * .25, r * .2), r * .24, cr);
     c.drawCircle(o + Offset(r * .35, r * .4), r * .1, cr);
@@ -127,14 +156,18 @@ class WeatherArtPainter extends CustomPainter {
     final bot = dark ? const Color(0xFF7C88A6) : const Color(0xFFC9D6F0);
     final path = Path()
       ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(b.left, b.top + h * .42, w, h * .58), Radius.circular(h * .29)))
-      ..addOval(Rect.fromCircle(center: Offset(b.left + w * .32, b.top + h * .46), radius: h * .34))
-      ..addOval(Rect.fromCircle(center: Offset(b.left + w * .60, b.top + h * .36), radius: h * .42))
-      ..addOval(Rect.fromCircle(center: Offset(b.left + w * .80, b.top + h * .55), radius: h * .27));
+          Rect.fromLTWH(b.left, b.top + h * .42, w, h * .58),
+          Radius.circular(h * .29)))
+      ..addOval(Rect.fromCircle(
+          center: Offset(b.left + w * .32, b.top + h * .46), radius: h * .34))
+      ..addOval(Rect.fromCircle(
+          center: Offset(b.left + w * .60, b.top + h * .36), radius: h * .42))
+      ..addOval(Rect.fromCircle(
+          center: Offset(b.left + w * .80, b.top + h * .55), radius: h * .27));
     c.drawPath(
       path.shift(Offset(0, h * .08)),
       Paint()
-        ..color = Colors.black.withValues(alpha:0.28)
+        ..color = Colors.black.withValues(alpha: 0.28)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .12),
     );
     c.drawPath(
@@ -157,7 +190,7 @@ class WeatherArtPainter extends CustomPainter {
       final x = s.width * (.24 + .55 * (i / (n - 1)));
       final ph = (t * 3 + i * .37) % 1.0;
       final y = s.height * (.64 + ph * .30);
-      p.color = const Color(0xFF8EC5FF).withValues(alpha:(1 - ph) * 0.95);
+      p.color = const Color(0xFF8EC5FF).withValues(alpha: (1 - ph) * 0.95);
       c.drawLine(Offset(x, y), Offset(x - u * .02, y + u * .07), p);
     }
   }
@@ -170,7 +203,7 @@ class WeatherArtPainter extends CustomPainter {
           math.sin(t * 2 * math.pi + i) * u * .02;
       final y = s.height * (.62 + ph * .32);
       c.drawCircle(Offset(x, y), u * .017,
-          Paint()..color = Colors.white.withValues(alpha:(1 - ph) * 0.95));
+          Paint()..color = Colors.white.withValues(alpha: (1 - ph) * 0.95));
     }
   }
 
@@ -189,10 +222,11 @@ class WeatherArtPainter extends CustomPainter {
     c.drawPath(
       path,
       Paint()
-        ..color = const Color(0xFFFFD166).withValues(alpha:0.7 * flash)
+        ..color = const Color(0xFFFFD166).withValues(alpha: 0.7 * flash)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
-    c.drawPath(path, Paint()..color = const Color(0xFFFFE27A).withValues(alpha:flash));
+    c.drawPath(path,
+        Paint()..color = const Color(0xFFFFE27A).withValues(alpha: flash));
   }
 
   @override

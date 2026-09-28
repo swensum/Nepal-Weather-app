@@ -60,7 +60,7 @@ class _SunPainter extends CustomPainter {
         pos,
         14,
         Paint()
-          ..color = const Color(0xFFFFB627).withValues(alpha:0.6)
+          ..color = const Color(0xFFFFB627).withValues(alpha: 0.6)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
       c.drawCircle(pos, 7, Paint()..color = const Color(0xFFFFD166));
@@ -95,12 +95,15 @@ class SunCard extends StatelessWidget {
         child: Column(
           children: [
             Row(children: [
-              const Icon(Icons.wb_twilight_rounded, size: 14, color: Colors.white60),
+              const Icon(Icons.wb_twilight_rounded,
+                  size: 14, color: Colors.white60),
               const SizedBox(width: 6),
               Text('SUNRISE & SUNSET',
-                  style: appText(11.5, w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
+                  style: appText(11.5,
+                      w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
               const Spacer(),
-              Text('${h}h ${m}m of daylight', style: appText(12, c: Colors.white60)),
+              Text('${h}h ${m}m of daylight',
+                  style: appText(12, c: Colors.white60)),
             ]),
             const SizedBox(height: 8),
             SizedBox(

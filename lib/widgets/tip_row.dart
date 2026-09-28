@@ -23,7 +23,8 @@ class TipRow extends StatelessWidget {
         child: Row(children: [
           Icon(tip.icon, color: const Color(0xFFFFD166), size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(tip.text, style: appText(13.5, w: FontWeight.w500))),
+          Expanded(
+              child: Text(tip.text, style: appText(13.5, w: FontWeight.w500))),
         ]),
       ),
     );

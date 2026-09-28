@@ -8,7 +8,8 @@ class StateView extends StatelessWidget {
   final IconData icon;
   final String title, body;
   final List<Widget> actions;
-  const StateView({super.key, 
+  const StateView({
+    super.key,
     required this.icon,
     required this.title,
     required this.body,
@@ -35,7 +36,11 @@ class StateView extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       center: Alignment(-0.4, -0.4),
-                      colors: [Color(0xFF7CC0FF), Color(0xFF3D7BFF), Color(0xFF1B2A6B)],
+                      colors: [
+                        Color(0xFF7CC0FF),
+                        Color(0xFF3D7BFF),
+                        Color(0xFF1B2A6B)
+                      ],
                     ),
                     boxShadow: [
                       BoxShadow(color: Color(0x663D7BFF), blurRadius: 30),

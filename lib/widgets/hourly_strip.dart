@@ -64,7 +64,8 @@ class _HourlyStripState extends State<HourlyStrip> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(i == 0 ? 'Now' : h12(h.time),
-                                style: appText(12.5, w: FontWeight.w600, c: Colors.white70)),
+                                style: appText(12.5,
+                                    w: FontWeight.w600, c: Colors.white70)),
                             Icon(skyIcon(sky, h.isDay),
                                 size: 30, color: skyIconColor(sky, h.isDay)),
                             Text('${h.temp.round()}°',

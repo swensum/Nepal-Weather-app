@@ -64,6 +64,9 @@ Future<List<String>> reverseGeocode(double lat, double lon) async {
         .join(', ');
     return [city.isEmpty ? 'Your location' : city, sub];
   } catch (_) {
-    return ['Your location', '${lat.toStringAsFixed(2)}, ${lon.toStringAsFixed(2)}'];
+    return [
+      'Your location',
+      '${lat.toStringAsFixed(2)}, ${lon.toStringAsFixed(2)}'
+    ];
   }
 }

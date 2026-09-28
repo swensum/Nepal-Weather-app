@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:weather_app_3d/screens/home_screen.dart';
 
-
 import '../theme/app_theme.dart';
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,7 +33,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _bootstrap() async {
-    
     await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -86,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.accent.withValues(alpha:0.45),
+                          color: AppTheme.accent.withValues(alpha: 0.45),
                           blurRadius: 40,
                           spreadRadius: 4,
                         ),

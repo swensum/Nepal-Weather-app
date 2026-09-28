@@ -9,7 +9,8 @@ class SkyBackdrop extends StatelessWidget {
   final Sky sky;
   final bool day;
   final Animation<double> anim;
-  const SkyBackdrop({super.key, required this.sky, required this.day, required this.anim});
+  const SkyBackdrop(
+      {super.key, required this.sky, required this.day, required this.anim});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +29,8 @@ class SkyBackdrop extends StatelessWidget {
         animation: anim,
         builder: (_, __) {
           final t = anim.value * 2 * math.pi;
-          Widget orb(double phase, Color col, double size, double ax, double ay) {
+          Widget orb(
+              double phase, Color col, double size, double ax, double ay) {
             return Align(
               alignment: Alignment(
                 ax + 0.35 * math.sin(t + phase),
@@ -40,7 +42,10 @@ class SkyBackdrop extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [col.withValues(alpha:0.35), col.withValues(alpha:0)],
+                    colors: [
+                      col.withValues(alpha: 0.35),
+                      col.withValues(alpha: 0)
+                    ],
                   ),
                 ),
               ),
@@ -78,7 +83,7 @@ class _StarsPainter extends CustomPainter {
       final rad = 0.6 + r.nextDouble() * 1.1;
       final tw = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2 * math.pi * 2 + ph));
       c.drawCircle(Offset(dx, dy), rad,
-          Paint()..color = Colors.white.withValues(alpha:tw * 0.8));
+          Paint()..color = Colors.white.withValues(alpha: tw * 0.8));
     }
   }
 

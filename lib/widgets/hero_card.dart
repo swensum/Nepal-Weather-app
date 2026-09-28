@@ -41,7 +41,9 @@ class HeroCard extends StatelessWidget {
                           children: [
                             Text('NOW',
                                 style: appText(12,
-                                    w: FontWeight.w700, c: Colors.white60, ls: 1.6)),
+                                    w: FontWeight.w700,
+                                    c: Colors.white60,
+                                    ls: 1.6)),
                             Text('${wx.temp.round()}°',
                                 style: appText(96, w: FontWeight.w200, h: 1.0)),
                             Text(describe(wx.code),
@@ -63,8 +65,10 @@ class HeroCard extends StatelessWidget {
                   Row(
                     children: [
                       _MiniStat(Icons.water_drop_rounded, '$pop%', 'Rain'),
-                      _MiniStat(Icons.air_rounded, '${wx.wind.round()} km/h', 'Wind'),
-                      _MiniStat(Icons.opacity_rounded, '${wx.humidity.round()}%', 'Humidity'),
+                      _MiniStat(
+                          Icons.air_rounded, '${wx.wind.round()} km/h', 'Wind'),
+                      _MiniStat(Icons.opacity_rounded,
+                          '${wx.humidity.round()}%', 'Humidity'),
                     ],
                   ),
                 ],

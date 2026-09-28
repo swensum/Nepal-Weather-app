@@ -21,7 +21,6 @@ import 'package:weather_app_3d/widgets/state_view.dart';
 import 'package:weather_app_3d/widgets/sun_card.dart';
 import 'package:weather_app_3d/widgets/tip_row.dart';
 
-
 enum _Status { loading, denied, deniedForever, serviceOff, error, ready }
 
 class ForecastScreen extends StatefulWidget {
@@ -47,8 +46,9 @@ class _ForecastScreenState extends State<ForecastScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _anim = AnimationController(vsync: this, duration: const Duration(seconds: 8))
-      ..repeat();
+    _anim =
+        AnimationController(vsync: this, duration: const Duration(seconds: 8))
+          ..repeat();
     _load();
   }
 
@@ -129,7 +129,8 @@ class _ForecastScreenState extends State<ForecastScreen>
       if (!mounted) return;
       if (silent && _wx != null) return; // keep old data on refresh failure
       setState(() {
-        _error = 'Could not get the forecast. Check your connection and try again.';
+        _error =
+            'Could not get the forecast. Check your connection and try again.';
         _status = _Status.error;
       });
     }
@@ -166,7 +167,8 @@ class _ForecastScreenState extends State<ForecastScreen>
           body:
               'Turn on location to see the weather report for exactly where you are.',
           actions: [
-            PillButton('Allow location', Icons.my_location_rounded, () => _load(),
+            PillButton(
+                'Allow location', Icons.my_location_rounded, () => _load(),
                 primary: true),
             PillButton('Use Kathmandu', Icons.location_city_rounded,
                 () => _load(fallback: true)),
@@ -229,11 +231,12 @@ class _ForecastScreenState extends State<ForecastScreen>
           'Carry an umbrella - up to $pop% rain chance in the next 12 hours'));
     }
     if (uv >= 6) {
-      tips.add(const Tip(
-          Icons.light_mode_rounded, 'High UV - use sunscreen and seek shade at midday'));
+      tips.add(const Tip(Icons.light_mode_rounded,
+          'High UV - use sunscreen and seek shade at midday'));
     }
     if (wx.gust >= 50) {
-      tips.add(Tip(Icons.air_rounded, 'Strong gusts up to ${wx.gust.round()} km/h'));
+      tips.add(
+          Tip(Icons.air_rounded, 'Strong gusts up to ${wx.gust.round()} km/h'));
     }
     if (wx.temp >= 35) {
       tips.add(const Tip(Icons.thermostat_rounded, 'Very hot - stay hydrated'));
@@ -242,13 +245,15 @@ class _ForecastScreenState extends State<ForecastScreen>
     }
     final aqi = wx.aqi;
     if (aqi != null && aqi >= 151) {
-      tips.add(const Tip(Icons.masks_rounded, 'Poor air - limit time outdoors'));
+      tips.add(
+          const Tip(Icons.masks_rounded, 'Poor air - limit time outdoors'));
     } else if (aqi != null && aqi >= 101) {
-      tips.add(const Tip(Icons.masks_rounded,
-          'Air is unhealthy for sensitive groups'));
+      tips.add(const Tip(
+          Icons.masks_rounded, 'Air is unhealthy for sensitive groups'));
     }
     if (tips.isEmpty) {
-      tips.add(const Tip(Icons.check_circle_rounded, 'Conditions look comfortable'));
+      tips.add(
+          const Tip(Icons.check_circle_rounded, 'Conditions look comfortable'));
     }
     return tips.take(3).toList();
   }

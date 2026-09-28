@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:weather_app_3d/helper/helpers.dart';
 
-
 class Hour {
   final DateTime time;
   final double temp;
@@ -34,7 +33,15 @@ class Day {
 
 class Wx {
   final DateTime time;
-  final double temp, feels, humidity, precip, cloud, pressure, wind, windDir, gust;
+  final double temp,
+      feels,
+      humidity,
+      precip,
+      cloud,
+      pressure,
+      wind,
+      windDir,
+      gust;
   final int code;
   final bool isDay;
   final double? visKm, uv;

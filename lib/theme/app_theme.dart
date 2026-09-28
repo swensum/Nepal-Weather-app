@@ -142,4 +142,5 @@ TextStyle appText(double size,
         Color c = Colors.white,
         double? ls,
         double? h}) =>
-    TextStyle(fontSize: size, fontWeight: w, color: c, letterSpacing: ls, height: h);
+    TextStyle(
+        fontSize: size, fontWeight: w, color: c, letterSpacing: ls, height: h);

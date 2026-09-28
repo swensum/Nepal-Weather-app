@@ -28,7 +28,7 @@ class _GaugePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 9
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha:0.12);
+      ..color = Colors.white.withValues(alpha: 0.12);
     c.drawArc(rect, 3 * math.pi / 4, 3 * math.pi / 2, false, track);
     final val = v.clamp(0.0, 1.0);
     if (val > 0) {
@@ -42,7 +42,7 @@ class _GaugePainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 14
           ..strokeCap = StrokeCap.round
-          ..color = col.withValues(alpha:0.35)
+          ..color = col.withValues(alpha: 0.35)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
       c.drawArc(
@@ -79,7 +79,7 @@ class _CompassPainter extends CustomPainter {
   void paint(Canvas c, Size s) {
     final o = s.center(Offset.zero);
     final r = s.shortestSide / 2 - 4;
-    c.drawCircle(o, r, Paint()..color = Colors.white.withValues(alpha:0.06));
+    c.drawCircle(o, r, Paint()..color = Colors.white.withValues(alpha: 0.06));
     c.drawCircle(
       o,
       r,
@@ -97,7 +97,7 @@ class _CompassPainter extends CustomPainter {
         o + d * (r - 1),
         Paint()
           ..strokeWidth = long ? 1.6 : 1
-          ..color = Colors.white.withValues(alpha:long ? 0.5 : 0.25),
+          ..color = Colors.white.withValues(alpha: long ? 0.5 : 0.25),
       );
     }
     _label(c, 'N', o + Offset(0, -r + 18), const Color(0xFFFF6B6B));
@@ -118,7 +118,7 @@ class _CompassPainter extends CustomPainter {
     c.drawPath(
       arrow,
       Paint()
-        ..color = const Color(0xFF6EA8FF).withValues(alpha:0.5)
+        ..color = const Color(0xFF6EA8FF).withValues(alpha: 0.5)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
     );
     c.drawPath(arrow, Paint()..color = const Color(0xFF8CC8FF));
@@ -160,14 +160,17 @@ class _DetailCard extends StatelessWidget {
                 Row(children: [
                   Icon(icon, size: 14, color: Colors.white60),
                   const SizedBox(width: 6),
-                  Text(title, style: appText(11.5, w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
+                  Text(title,
+                      style: appText(11.5,
+                          w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
                 ]),
                 Expanded(child: Center(child: child)),
                 Text(footer,
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: appText(12.5, c: Colors.white70, w: FontWeight.w500)),
+                    style:
+                        appText(12.5, c: Colors.white70, w: FontWeight.w500)),
               ],
             ),
           ),
@@ -188,7 +191,8 @@ class DetailsGrid extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CustomPaint(size: const Size(96, 96), painter: _GaugePainter(v, cols)),
+          CustomPaint(
+              size: const Size(96, 96), painter: _GaugePainter(v, cols)),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -277,7 +281,12 @@ class DetailsGrid extends StatelessWidget {
             footer: _uvLevel(uv),
             child: _gauge(
               uv / 11,
-              const [Color(0xFF7CE0A6), Color(0xFFFFD166), Color(0xFFFF8A4C), Color(0xFFE5484D)],
+              const [
+                Color(0xFF7CE0A6),
+                Color(0xFFFFD166),
+                Color(0xFFFF8A4C),
+                Color(0xFFE5484D)
+              ],
               uv.toStringAsFixed(uv < 10 ? 1 : 0),
               'of 11+',
             ),
@@ -325,7 +334,8 @@ class DetailsGrid extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(wx.precip.toStringAsFixed(1), style: appText(40, w: FontWeight.w300)),
+                Text(wx.precip.toStringAsFixed(1),
+                    style: appText(40, w: FontWeight.w300)),
                 Text('mm now', style: appText(13, c: Colors.white54)),
               ],
             ),
@@ -335,7 +345,8 @@ class DetailsGrid extends StatelessWidget {
             icon: Icons.thermostat_rounded,
             title: 'FEELS LIKE',
             footer: feelsText,
-            child: Text('${wx.feels.round()}°', style: appText(46, w: FontWeight.w200)),
+            child: Text('${wx.feels.round()}°',
+                style: appText(46, w: FontWeight.w200)),
           ),
         ],
       );

@@ -2,8 +2,22 @@ double toD(dynamic v, [double def = 0]) => v is num ? v.toDouble() : def;
 double? toDn(dynamic v) => v is num ? v.toDouble() : null;
 
 const _dirs = [
-  'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
+  'N',
+  'NNE',
+  'NE',
+  'ENE',
+  'E',
+  'ESE',
+  'SE',
+  'SSE',
+  'S',
+  'SSW',
+  'SW',
+  'WSW',
+  'W',
+  'WNW',
+  'NW',
+  'NNW'
 ];
 String dirText(double deg) => _dirs[((deg / 22.5) + 0.5).floor() % 16];
 

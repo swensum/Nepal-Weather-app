@@ -39,16 +39,19 @@ class DailyCard extends StatelessWidget {
                     children: [
                       SizedBox(
                         width: 52,
-                        child: Text(i == 0 ? 'Today' : kDays[d.date.weekday - 1],
+                        child: Text(
+                            i == 0 ? 'Today' : kDays[d.date.weekday - 1],
                             style: appText(15, w: FontWeight.w600)),
                       ),
-                      Icon(skyIcon(sky, true), size: 24, color: skyIconColor(sky, true)),
+                      Icon(skyIcon(sky, true),
+                          size: 24, color: skyIconColor(sky, true)),
                       SizedBox(
                         width: 44,
                         child: Text(
                           d.pop >= 10 ? '${d.pop}%' : '',
                           textAlign: TextAlign.center,
-                          style: appText(11.5, c: const Color(0xFF8CC8FF), w: FontWeight.w600),
+                          style: appText(11.5,
+                              c: const Color(0xFF8CC8FF), w: FontWeight.w600),
                         ),
                       ),
                       SizedBox(
@@ -100,7 +103,8 @@ class DailyCard extends StatelessWidget {
                   ),
                 );
               }),
-              if (i != days.length - 1) Container(height: 1, color: Colors.white10),
+              if (i != days.length - 1)
+                Container(height: 1, color: Colors.white10),
             ],
           ],
         ),

@@ -5,7 +5,6 @@ import 'package:weather_app_3d/components/map_screen.dart';
 import 'package:weather_app_3d/components/navbar.dart';
 import 'package:weather_app_3d/components/setting_screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 

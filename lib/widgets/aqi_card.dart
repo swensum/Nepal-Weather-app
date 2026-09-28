@@ -11,7 +11,8 @@ class AqiCard extends StatelessWidget {
   (String, Color) _info(int a) {
     if (a <= 50) return ('Good', const Color(0xFF4ADE80));
     if (a <= 100) return ('Moderate', const Color(0xFFFACC15));
-    if (a <= 150) return ('Unhealthy for sensitive groups', const Color(0xFFFB923C));
+    if (a <= 150)
+      return ('Unhealthy for sensitive groups', const Color(0xFFFB923C));
     if (a <= 200) return ('Unhealthy', const Color(0xFFEF4444));
     if (a <= 300) return ('Very unhealthy', const Color(0xFFA855F7));
     return ('Hazardous', const Color(0xFF9F1239));
@@ -35,13 +36,15 @@ class AqiCard extends StatelessWidget {
               const Icon(Icons.air_rounded, size: 14, color: Colors.white60),
               const SizedBox(width: 6),
               Text('AIR QUALITY (US AQI)',
-                  style: appText(11.5, w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
+                  style: appText(11.5,
+                      w: FontWeight.w700, c: Colors.white60, ls: 1.2)),
             ]),
             const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(aqi?.toString() ?? '--', style: appText(48, w: FontWeight.w300, h: 1.0)),
+                Text(aqi?.toString() ?? '--',
+                    style: appText(48, w: FontWeight.w300, h: 1.0)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Padding(

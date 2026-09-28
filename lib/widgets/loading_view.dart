@@ -6,7 +6,7 @@ import 'package:weather_app_3d/theme/app_theme.dart';
 
 class LoadingView extends StatelessWidget {
   final Animation<double> anim;
-  const LoadingView({required this.anim});
+  const LoadingView({super.key, required this.anim});
 
   @override
   Widget build(BuildContext context) {

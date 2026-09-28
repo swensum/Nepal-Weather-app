@@ -6,7 +6,7 @@ import 'tilt_card.dart';
 
 class AqiCard extends StatelessWidget {
   final Wx wx;
-  const AqiCard({required this.wx});
+  const AqiCard({super.key, required this.wx});
 
   (String, Color) _info(int a) {
     if (a <= 50) return ('Good', const Color(0xFF4ADE80));

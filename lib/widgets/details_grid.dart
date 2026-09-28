@@ -28,7 +28,7 @@ class _GaugePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 9
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withOpacity(0.12);
+      ..color = Colors.white.withValues(alpha:0.12);
     c.drawArc(rect, 3 * math.pi / 4, 3 * math.pi / 2, false, track);
     final val = v.clamp(0.0, 1.0);
     if (val > 0) {
@@ -42,7 +42,7 @@ class _GaugePainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 14
           ..strokeCap = StrokeCap.round
-          ..color = col.withOpacity(0.35)
+          ..color = col.withValues(alpha:0.35)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
       c.drawArc(
@@ -79,7 +79,7 @@ class _CompassPainter extends CustomPainter {
   void paint(Canvas c, Size s) {
     final o = s.center(Offset.zero);
     final r = s.shortestSide / 2 - 4;
-    c.drawCircle(o, r, Paint()..color = Colors.white.withOpacity(0.06));
+    c.drawCircle(o, r, Paint()..color = Colors.white.withValues(alpha:0.06));
     c.drawCircle(
       o,
       r,
@@ -97,7 +97,7 @@ class _CompassPainter extends CustomPainter {
         o + d * (r - 1),
         Paint()
           ..strokeWidth = long ? 1.6 : 1
-          ..color = Colors.white.withOpacity(long ? 0.5 : 0.25),
+          ..color = Colors.white.withValues(alpha:long ? 0.5 : 0.25),
       );
     }
     _label(c, 'N', o + Offset(0, -r + 18), const Color(0xFFFF6B6B));
@@ -118,7 +118,7 @@ class _CompassPainter extends CustomPainter {
     c.drawPath(
       arrow,
       Paint()
-        ..color = const Color(0xFF6EA8FF).withOpacity(0.5)
+        ..color = const Color(0xFF6EA8FF).withValues(alpha:0.5)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
     );
     c.drawPath(arrow, Paint()..color = const Color(0xFF8CC8FF));

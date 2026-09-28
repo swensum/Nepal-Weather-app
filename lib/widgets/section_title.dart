@@ -5,7 +5,7 @@ import 'package:weather_app_3d/theme/app_theme.dart';
 class SectionTitle extends StatelessWidget {
   final IconData icon;
   final String text;
-  const SectionTitle(this.icon, this.text);
+  const SectionTitle(this.icon, this.text, {super.key});
 
   @override
   Widget build(BuildContext context) {

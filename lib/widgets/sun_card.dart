@@ -60,7 +60,7 @@ class _SunPainter extends CustomPainter {
         pos,
         14,
         Paint()
-          ..color = const Color(0xFFFFB627).withOpacity(0.6)
+          ..color = const Color(0xFFFFB627).withValues(alpha:0.6)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
       c.drawCircle(pos, 7, Paint()..color = const Color(0xFFFFD166));

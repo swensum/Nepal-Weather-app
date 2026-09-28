@@ -10,7 +10,7 @@ import 'weather_art_painter.dart';
 class HeroCard extends StatelessWidget {
   final Wx wx;
   final Animation<double> anim;
-  const HeroCard({required this.wx, required this.anim});
+  const HeroCard({super.key, required this.wx, required this.anim});
 
   @override
   Widget build(BuildContext context) {

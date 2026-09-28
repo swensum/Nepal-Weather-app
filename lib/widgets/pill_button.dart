@@ -7,7 +7,7 @@ class PillButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool primary;
-  const PillButton(this.label, this.icon, this.onTap, {this.primary = false});
+  const PillButton(this.label, this.icon, this.onTap, {super.key, this.primary = false});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ class PillButton extends StatelessWidget {
           gradient: primary
               ? const LinearGradient(colors: [Color(0xFFFFAA33), Color(0xFFFF7A59)])
               : null,
-          color: primary ? null : Colors.white.withOpacity(0.10),
+          color: primary ? null : Colors.white.withValues(alpha:0.10),
           borderRadius: BorderRadius.circular(30),
           border: primary ? null : Border.all(color: Colors.white24),
         ),

@@ -39,14 +39,14 @@ class LiquidGlassNavBar extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withOpacity(0.14),
-                  Colors.white.withOpacity(0.04),
+                  Colors.white.withValues(alpha:0.14),
+                  Colors.white.withValues(alpha:0.04),
                 ],
               ),
-              border: Border.all(color: Colors.white.withOpacity(0.18)),
+              border: Border.all(color: Colors.white.withValues(alpha:0.18)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha:0.35),
                   blurRadius: 24,
                   offset: const Offset(0, 12),
                 ),
@@ -102,7 +102,7 @@ class _NavPill extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppTheme.accent.withOpacity(0.5),
+                    color: AppTheme.accent.withValues(alpha:0.5),
                     blurRadius: 18,
                     spreadRadius: 1,
                   ),
@@ -119,7 +119,7 @@ class _NavPill extends StatelessWidget {
               curve: Curves.easeOutBack,
               child: Icon(
                 item.icon,
-                color: selected ? Colors.white : Colors.white.withOpacity(0.55),
+                color: selected ? Colors.white : Colors.white.withValues(alpha:0.55),
                 size: 22,
               ),
             ),

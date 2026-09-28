@@ -11,7 +11,7 @@ import 'tilt_card.dart';
 
 class DailyCard extends StatelessWidget {
   final List<Day> days;
-  const DailyCard({required this.days});
+  const DailyCard({super.key, required this.days});
 
   @override
   Widget build(BuildContext context) {

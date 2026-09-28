@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Touch-tilt: the card leans away from your finger in 3D and shows a
-/// moving light reflection. Uses raw pointer events, so scrolling still works.
 class TiltCard extends StatefulWidget {
   final Widget child;
   final double max;
   final double radius;
-  const TiltCard({required this.child, this.max = 0.2, this.radius = 24});
+  const TiltCard({super.key, required this.child, this.max = 0.2, this.radius = 24});
 
   @override
   State<TiltCard> createState() => _TiltState();
@@ -69,8 +67,8 @@ class _TiltState extends State<TiltCard> {
                               center: Alignment(v.dx, v.dy),
                               radius: 0.9,
                               colors: [
-                                Colors.white.withOpacity(0.22),
-                                Colors.white.withOpacity(0),
+                                Colors.white.withValues(alpha:0.22),
+                                Colors.white.withValues(alpha:0),
                               ],
                             ),
                           ),

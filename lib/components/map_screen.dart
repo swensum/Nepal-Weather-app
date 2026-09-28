@@ -287,7 +287,7 @@ class _MapScreenState extends State<MapScreen> {
       // Optional Tomorrow.io forecast frames
       if (kTomorrowApiKey.isNotEmpty && nowcast.isEmpty) {
         final base = frames[liveIndex].time;
-        final steps = (kForecastHours * 60) ~/ kForecastStepMinutes;
+        const steps = (kForecastHours * 60) ~/ kForecastStepMinutes;
         for (int i = 1; i <= steps; i++) {
           final t = base.add(Duration(minutes: kForecastStepMinutes * i));
           final u = t.toUtc();
@@ -855,9 +855,9 @@ class _Glass extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: const Color(0xFF14161B).withOpacity(0.78),
+            color: const Color(0xFF14161B).withValues(alpha: 0.78),
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: child,
         ),
@@ -1037,7 +1037,7 @@ class _LayerSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF15171C),
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1132,13 +1132,13 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF3D7BFF).withOpacity(0.22)
-              : Colors.white.withOpacity(0.06),
+              ? const Color(0xFF3D7BFF).withValues(alpha:  0.22)
+              : Colors.white.withValues(alpha:  0.06),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
                 ? const Color(0xFF6EA8FF)
-                : Colors.white.withOpacity(0.06),
+                : Colors.white.withValues(alpha: 0.06),
           ),
         ),
         child: Row(

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class RevealIn extends StatelessWidget {
   final int i;
   final Widget child;
-  const RevealIn({required this.i, required this.child});
+  const RevealIn({super.key, required this.i, required this.child});
 
   @override
   Widget build(BuildContext context) {

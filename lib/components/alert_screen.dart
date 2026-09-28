@@ -11,7 +11,7 @@ class AlertsScreen extends StatelessWidget {
         child: Center(
           child: Text(
             'Alerts — designing next',
-            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
           ),
         ),
       ),

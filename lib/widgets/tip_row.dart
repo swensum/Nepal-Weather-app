@@ -11,7 +11,7 @@ class Tip {
 
 class TipRow extends StatelessWidget {
   final Tip tip;
-  const TipRow(this.tip);
+  const TipRow(this.tip, {super.key});
 
   @override
   Widget build(BuildContext context) {

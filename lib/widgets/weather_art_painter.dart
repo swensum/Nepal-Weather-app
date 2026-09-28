@@ -48,7 +48,7 @@ class WeatherArtPainter extends CustomPainter {
               Rect.fromLTWH(s.width * (.16 + .06 * i) + dx, y, s.width * .62, u * .045),
               Radius.circular(u),
             ),
-            Paint()..color = Colors.white.withOpacity(0.35 - i * 0.07),
+            Paint()..color = Colors.white.withValues(alpha:0.35 - i * 0.07),
           );
         }
         break;
@@ -75,11 +75,11 @@ class WeatherArtPainter extends CustomPainter {
       o,
       r * 1.15,
       Paint()
-        ..color = const Color(0xFFFFB627).withOpacity(0.55)
+        ..color = const Color(0xFFFFB627).withValues(alpha:0.55)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * .9),
     );
     final ray = Paint()
-      ..color = const Color(0xFFFFD166).withOpacity(0.9)
+      ..color = const Color(0xFFFFD166).withValues(alpha:0.9)
       ..strokeWidth = r * .12
       ..strokeCap = StrokeCap.round;
     for (int i = 0; i < 12; i++) {
@@ -103,7 +103,7 @@ class WeatherArtPainter extends CustomPainter {
       o,
       r * 1.1,
       Paint()
-        ..color = const Color(0xFF9FB4FF).withOpacity(0.4)
+        ..color = const Color(0xFF9FB4FF).withValues(alpha:0.4)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * .8),
     );
     c.drawCircle(
@@ -115,7 +115,7 @@ class WeatherArtPainter extends CustomPainter {
           colors: [Color(0xFFFFFFFF), Color(0xFFDDE4F7), Color(0xFF9FAED6)],
         ).createShader(Rect.fromCircle(center: o, radius: r)),
     );
-    final cr = Paint()..color = const Color(0xFF7F8DB8).withOpacity(0.28);
+    final cr = Paint()..color = const Color(0xFF7F8DB8).withValues(alpha:0.28);
     c.drawCircle(o + Offset(r * .3, -r * .25), r * .18, cr);
     c.drawCircle(o + Offset(-r * .25, r * .2), r * .24, cr);
     c.drawCircle(o + Offset(r * .35, r * .4), r * .1, cr);
@@ -134,7 +134,7 @@ class WeatherArtPainter extends CustomPainter {
     c.drawPath(
       path.shift(Offset(0, h * .08)),
       Paint()
-        ..color = Colors.black.withOpacity(0.28)
+        ..color = Colors.black.withValues(alpha:0.28)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .12),
     );
     c.drawPath(
@@ -157,7 +157,7 @@ class WeatherArtPainter extends CustomPainter {
       final x = s.width * (.24 + .55 * (i / (n - 1)));
       final ph = (t * 3 + i * .37) % 1.0;
       final y = s.height * (.64 + ph * .30);
-      p.color = const Color(0xFF8EC5FF).withOpacity((1 - ph) * 0.95);
+      p.color = const Color(0xFF8EC5FF).withValues(alpha:(1 - ph) * 0.95);
       c.drawLine(Offset(x, y), Offset(x - u * .02, y + u * .07), p);
     }
   }
@@ -170,7 +170,7 @@ class WeatherArtPainter extends CustomPainter {
           math.sin(t * 2 * math.pi + i) * u * .02;
       final y = s.height * (.62 + ph * .32);
       c.drawCircle(Offset(x, y), u * .017,
-          Paint()..color = Colors.white.withOpacity((1 - ph) * 0.95));
+          Paint()..color = Colors.white.withValues(alpha:(1 - ph) * 0.95));
     }
   }
 
@@ -189,10 +189,10 @@ class WeatherArtPainter extends CustomPainter {
     c.drawPath(
       path,
       Paint()
-        ..color = const Color(0xFFFFD166).withOpacity(0.7 * flash)
+        ..color = const Color(0xFFFFD166).withValues(alpha:0.7 * flash)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
-    c.drawPath(path, Paint()..color = const Color(0xFFFFE27A).withOpacity(flash));
+    c.drawPath(path, Paint()..color = const Color(0xFFFFE27A).withValues(alpha:flash));
   }
 
   @override

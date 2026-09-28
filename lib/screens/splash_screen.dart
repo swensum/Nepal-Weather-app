@@ -35,7 +35,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _bootstrap() async {
-    // TODO: re-add weather/location loading once the provider is wired back in.
+    
     await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -86,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.accent.withOpacity(0.45),
+                          color: AppTheme.accent.withValues(alpha:0.45),
                           blurRadius: 40,
                           spreadRadius: 4,
                         ),

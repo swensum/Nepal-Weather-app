@@ -40,7 +40,7 @@ class SkyBackdrop extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [col.withOpacity(0.35), col.withOpacity(0)],
+                    colors: [col.withValues(alpha:0.35), col.withValues(alpha:0)],
                   ),
                 ),
               ),
@@ -78,7 +78,7 @@ class _StarsPainter extends CustomPainter {
       final rad = 0.6 + r.nextDouble() * 1.1;
       final tw = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2 * math.pi * 2 + ph));
       c.drawCircle(Offset(dx, dy), rad,
-          Paint()..color = Colors.white.withOpacity(tw * 0.8));
+          Paint()..color = Colors.white.withValues(alpha:tw * 0.8));
     }
   }
 

@@ -323,7 +323,7 @@ class _ForecastScreenState extends State<ForecastScreen>
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF3D7BFF).withOpacity(0.25),
+                color: const Color(0xFF3D7BFF).withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFF6EA8FF)),
               ),

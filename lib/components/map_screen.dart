@@ -367,6 +367,10 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _layer = l;
       _showOverlay = true;
+      // Colour layers look much better on a plain dark map than satellite.
+      if (l != WeatherLayer.radar && _base.name == 'Satellite') {
+        _base = kBaseStyles.first;
+      }
     });
     if (l == WeatherLayer.radar) _startStaging();
   }
@@ -429,6 +433,30 @@ class _MapScreenState extends State<MapScreen> {
       return m == 0 ? '$sign${h}h' : '$sign${h}h ${m}m';
     }
     return '$sign${a}m';
+  }
+
+  double get _owmOpacity {
+    switch (_layer) {
+      case WeatherLayer.temperature:
+        return 0.92;
+      case WeatherLayer.wind:
+        return 0.9;
+      default:
+        return 0.85;
+    }
+  }
+
+  double get _owmSaturation => _layer == WeatherLayer.temperature ? 1.5 : 1.25;
+
+  ColorFilter _saturation(double s) {
+    const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+    final ir = 1 - s;
+    return ColorFilter.matrix(<double>[
+      lr * ir + s, lg * ir, lb * ir, 0, 0,
+      lr * ir, lg * ir + s, lb * ir, 0, 0,
+      lr * ir, lg * ir, lb * ir + s, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
   }
 
   bool get _layerNeedsKey => _layer != WeatherLayer.radar && kOwmKey.isEmpty;
@@ -518,14 +546,18 @@ class _MapScreenState extends State<MapScreen> {
             kOwmKey.isNotEmpty)
           Opacity(
             key: ValueKey('owm_${_layer.name}'),
-            opacity: 0.75,
-            child: TileLayer(
-              urlTemplate: 'https://tile.openweathermap.org/map/'
-                  '${_layer.owmId}/{z}/{x}/{y}.png?appid=$kOwmKey',
-              userAgentPackageName: kUserAgent,
-              maxNativeZoom: kOwmMaxNativeZoom,
-              maxZoom: 18,
-              tileDisplay: const TileDisplay.instantaneous(),
+            opacity: _owmOpacity,
+            child: ColorFiltered(
+              // boost saturation so the colours stay vivid over the map
+              colorFilter: _saturation(_owmSaturation),
+              child: TileLayer(
+                urlTemplate: 'https://tile.openweathermap.org/map/'
+                    '${_layer.owmId}/{z}/{x}/{y}.png?appid=$kOwmKey',
+                userAgentPackageName: kUserAgent,
+                maxNativeZoom: kOwmMaxNativeZoom,
+                maxZoom: 18,
+                tileDisplay: const TileDisplay.instantaneous(),
+              ),
             ),
           ),
 

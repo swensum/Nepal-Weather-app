@@ -1,25 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Central place for the app's "modern 3D glass" design language.
-/// Every widget in the app should pull colors / gradients / text
-/// styles from here so the whole app stays visually consistent.
-///
-/// Palette notes:
-/// - Backgrounds use deep, desaturated jewel tones (indigo/teal/slate)
-///   instead of flat primary blue — reads as premium, not "default app".
-/// - Glass cards get a faint cool-white tint with low opacity so they
-///   sit ON the gradient rather than washing it out.
-/// - One warm accent (amber-gold) is used sparingly against all the
-///   cool backgrounds so it actually pops (temperature, CTAs, highlights).
 class AppTheme {
   AppTheme._();
 
-  // ---------------------------------------------------------------------
-  // Sky gradients — chosen by time-of-day + weather condition so the
-  // background itself communicates "clear night", "stormy afternoon" etc.
-  // Each one is a 3-stop gradient tuned for depth, not just a fade.
-  // ---------------------------------------------------------------------
   static LinearGradient skyGradient({
     required bool isDay,
     required int weatherCode,
@@ -148,3 +132,14 @@ class AppTheme {
         ),
       );
 }
+
+const Color kBg = Color(0xFF060A1F);
+const double kFallbackLat = 27.7172; // Kathmandu
+const double kFallbackLon = 85.3240;
+
+TextStyle appText(double size,
+        {FontWeight w = FontWeight.w400,
+        Color c = Colors.white,
+        double? ls,
+        double? h}) =>
+    TextStyle(fontSize: size, fontWeight: w, color: c, letterSpacing: ls, height: h);

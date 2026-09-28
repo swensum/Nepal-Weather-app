@@ -16,6 +16,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>weather_app_3d</string>
+	   <key>NSLocationWhenInUseUsageDescription</key>
+   <string>We use your location to show local weather.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

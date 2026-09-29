@@ -7,28 +7,18 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
-// ---------------------------------------------------------------------------
-// KEYS (all optional). Pass them at run time, never hard-code / commit them:
-//   flutter run --dart-define=OWM_KEY=xxxx --dart-define=TOMORROW_KEY=yyyy
-//
-// OWM_KEY      -> enables Temperature / Clouds / Wind / Pressure layers
-// TOMORROW_KEY -> adds a +2h rain forecast after LIVE
-// ---------------------------------------------------------------------------
 const String kOwmKey = String.fromEnvironment('OWM_KEY');
 const String kTomorrowApiKey = String.fromEnvironment('TOMORROW_KEY');
 
 const int kForecastStepMinutes = 30;
 const int kForecastHours = 2;
-const int kTomorrowMaxNativeZoom = 8; // check your Tomorrow.io plan limits
+const int kTomorrowMaxNativeZoom = 8;
 const int kOwmMaxNativeZoom = 9;
 
-// Smoothness tuning
-const int kMaxRadarFrames = 8; // past frames to animate (8 x 10min = 80min)
-const int kStageDelayMs = 350; // gap between mounting each frame's tiles
+const int kMaxRadarFrames = 8; 
+const int kStageDelayMs = 350; 
 
 const String kUserAgent = 'com.example.weather_app_3d';
-
-// ------------------------------------------------------------------ models
 
 enum WeatherLayer {
   radar('Rain Radar', Icons.water_drop_rounded, null),
@@ -108,10 +98,8 @@ class MapFrame {
   });
 }
 
-// ------------------------------------------------------------------ screen
-
 class MapScreen extends StatefulWidget {
-  /// Height of your own bottom navigation bar, so the timeline sits above it.
+ 
   final double bottomInset;
 
   const MapScreen({super.key, this.bottomInset = 100});
@@ -139,9 +127,6 @@ class _MapScreenState extends State<MapScreen> {
   bool _playing = false;
   bool _showOverlay = true;
   Timer? _timer;
-
-  // Staged preloading: frames are mounted one by one so we never fire
-  // hundreds of tile requests at once (that made tiles fail / go missing).
   final Set<int> _mounted = {};
   Timer? _stageTimer;
   Timer? _restageTimer;
@@ -152,7 +137,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    // Default cache (100MB) is too small for many radar frames -> evictions.
+    
     final cache = PaintingBinding.instance.imageCache;
     cache.maximumSizeBytes = 400 << 20;
     cache.maximumSize = 3000;
@@ -167,7 +152,6 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  /// Mount radar frames gradually (current frame first).
   void _startStaging() {
     _stageTimer?.cancel();
     if (_frames.isEmpty || _layer != WeatherLayer.radar) return;
@@ -206,7 +190,7 @@ class _MapScreenState extends State<MapScreen> {
         setState(() => _mounted.add(order[n]));
       }
       n++;
-      // a few extra ticks so the last frame's tiles can finish downloading
+      
       if (n >= order.length + 3) {
         t.cancel();
         setState(() {
@@ -216,10 +200,6 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
   }
-
-  /// Called when the view is about to change (pan / zoom / recenter).
-  /// Drop hidden frames immediately (so they don't all re-request tiles at
-  /// once), then reload them gradually once the map settles.
   void _onViewChanging() {
     if (_layer != WeatherLayer.radar || _frames.isEmpty) return;
     _stop();
@@ -367,7 +347,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _layer = l;
       _showOverlay = true;
-      // Colour layers look much better on a plain dark map than satellite.
+    
       if (l != WeatherLayer.radar && _base.name == 'Satellite') {
         _base = kBaseStyles.first;
       }
@@ -405,11 +385,6 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-
-  // ------------------------------------------------------------- helpers
-
-  /// All past frames stay mounted (so tiles are cached & animation is smooth);
-  /// forecast frames only load when close to the current one.
   bool _shouldBuild(int i) {
     if (!_frames[i].isForecast) return _mounted.contains(i) || i == _index;
     return (i - _index).abs() <= 1;
@@ -477,8 +452,6 @@ class _MapScreenState extends State<MapScreen> {
 
   bool get _layerNeedsKey => _layer != WeatherLayer.radar && kOwmKey.isEmpty;
 
-  // ----------------------------------------------------------------- UI
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -533,10 +506,6 @@ class _MapScreenState extends State<MapScreen> {
           maxNativeZoom: _base.baseNativeZoom,
           maxZoom: 18,
         ),
-
-        // 2a. Radar frames: all stacked, only the current one is visible.
-        // Hidden frames use 1% opacity (not 0) so Flutter still paints them
-        // and their tiles stay loaded -> no "stuck" animation.
         if (_showOverlay && _layer == WeatherLayer.radar)
           for (int i = 0; i < _frames.length; i++)
             if (_shouldBuild(i))
@@ -556,7 +525,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
 
-        // 2b. OpenWeatherMap layers (temperature, clouds, wind, pressure)
+       
         if (_showOverlay && _layer != WeatherLayer.radar && kOwmKey.isNotEmpty)
           Opacity(
             key: ValueKey('owm_${_layer.name}'),
@@ -847,9 +816,6 @@ class _MapScreenState extends State<MapScreen> {
       color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500);
 }
 
-// ---------------------------------------------------------------- widgets
-
-/// Frosted-glass container used across the UI.
 class _Glass extends StatelessWidget {
   final Widget child;
   final double radius;
@@ -1026,7 +992,6 @@ class _Legend extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------ layer sheet
 
 class _LayerSheet extends StatelessWidget {
   final WeatherLayer selectedLayer;

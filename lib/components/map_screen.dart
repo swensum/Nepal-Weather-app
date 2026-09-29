@@ -15,8 +15,8 @@ const int kForecastHours = 2;
 const int kTomorrowMaxNativeZoom = 8;
 const int kOwmMaxNativeZoom = 9;
 
-const int kMaxRadarFrames = 8; 
-const int kStageDelayMs = 350; 
+const int kMaxRadarFrames = 8;
+const int kStageDelayMs = 350;
 
 const String kUserAgent = 'com.example.weather_app_3d';
 
@@ -99,7 +99,6 @@ class MapFrame {
 }
 
 class MapScreen extends StatefulWidget {
- 
   final double bottomInset;
 
   const MapScreen({super.key, this.bottomInset = 100});
@@ -137,7 +136,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     final cache = PaintingBinding.instance.imageCache;
     cache.maximumSizeBytes = 400 << 20;
     cache.maximumSize = 3000;
@@ -190,7 +189,7 @@ class _MapScreenState extends State<MapScreen> {
         setState(() => _mounted.add(order[n]));
       }
       n++;
-      
+
       if (n >= order.length + 3) {
         t.cancel();
         setState(() {
@@ -200,6 +199,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
   }
+
   void _onViewChanging() {
     if (_layer != WeatherLayer.radar || _frames.isEmpty) return;
     _stop();
@@ -347,7 +347,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _layer = l;
       _showOverlay = true;
-    
+
       if (l != WeatherLayer.radar && _base.name == 'Satellite') {
         _base = kBaseStyles.first;
       }
@@ -385,6 +385,7 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+
   bool _shouldBuild(int i) {
     if (!_frames[i].isForecast) return _mounted.contains(i) || i == _index;
     return (i - _index).abs() <= 1;
@@ -525,7 +526,6 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
 
-       
         if (_showOverlay && _layer != WeatherLayer.radar && kOwmKey.isNotEmpty)
           Opacity(
             key: ValueKey('owm_${_layer.name}'),
@@ -991,7 +991,6 @@ class _Legend extends StatelessWidget {
     );
   }
 }
-
 
 class _LayerSheet extends StatelessWidget {
   final WeatherLayer selectedLayer;
